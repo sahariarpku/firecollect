@@ -63,7 +63,10 @@ const SUPABASE_URL = "your url here";
 const SUPABASE_PUBLISHABLE_KEY = "your key here";
 
 ```
-
+find /firecollect/supabase/config.toml and add project id:
+```config.toml
+project_id = ""
+```
 4. Set up your database schema. You'll need to run these SQL commands in your Supabase SQL editor:
 ```sql:
 -- Create tables
