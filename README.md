@@ -66,6 +66,7 @@ VITE_AI_API_KEY=your_ai_service_api_key
 
 4. Start the development server:
 ```bash
+npm i
 npm run dev
 # or
 yarn dev
