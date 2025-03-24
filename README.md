@@ -45,7 +45,7 @@ FireCollect Magic is an advanced research paper analysis platform that helps res
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/sahariarpku/firecollect.git
 cd firecollect-magic
 ```
 
