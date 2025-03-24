@@ -69,13 +69,28 @@ project_id = ""
 ```
 4. Set up your database schema. You'll need to run these SQL commands in your Supabase SQL editor:
 ```sql:
--- Create tables
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create storage bucket for PDFs
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('pdfs', 'pdfs', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create RLS (Row Level Security) policy for storage
+CREATE POLICY "Public Access" ON storage.objects
+  FOR SELECT USING (bucket_id = 'pdfs');
+
+-- Create tables with proper relationships and indexes
+
+-- Create searches table
 CREATE TABLE IF NOT EXISTS searches (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     query TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create papers table
 CREATE TABLE IF NOT EXISTS papers (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL,
@@ -83,10 +98,14 @@ CREATE TABLE IF NOT EXISTS papers (
     year INTEGER,
     abstract TEXT,
     doi TEXT,
-    search_id UUID REFERENCES searches(id),
+    search_id UUID REFERENCES searches(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create index for search_id in papers
+CREATE INDEX IF NOT EXISTS idx_papers_search_id ON papers(search_id);
+
+-- Create pdf_uploads table
 CREATE TABLE IF NOT EXISTS pdf_uploads (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -103,18 +122,26 @@ CREATE TABLE IF NOT EXISTS pdf_uploads (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create pdf_batches table
 CREATE TABLE IF NOT EXISTS pdf_batches (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create batch_pdfs table (junction table for many-to-many relationship)
 CREATE TABLE IF NOT EXISTS batch_pdfs (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    batch_id UUID REFERENCES pdf_batches(id),
-    pdf_id UUID REFERENCES pdf_uploads(id)
+    batch_id UUID REFERENCES pdf_batches(id) ON DELETE CASCADE,
+    pdf_id UUID REFERENCES pdf_uploads(id) ON DELETE CASCADE,
+    UNIQUE(batch_id, pdf_id)
 );
 
+-- Create indexes for batch_pdfs
+CREATE INDEX IF NOT EXISTS idx_batch_pdfs_batch_id ON batch_pdfs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_batch_pdfs_pdf_id ON batch_pdfs(pdf_id);
+
+-- Create firecrawl_api_keys table
 CREATE TABLE IF NOT EXISTS firecrawl_api_keys (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     api_key TEXT NOT NULL,
@@ -123,6 +150,7 @@ CREATE TABLE IF NOT EXISTS firecrawl_api_keys (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create ai_models table
 CREATE TABLE IF NOT EXISTS ai_models (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL,
@@ -134,6 +162,88 @@ CREATE TABLE IF NOT EXISTS ai_models (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create RLS policies for all tables
+
+-- Searches table policies
+ALTER TABLE searches ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for searches" ON searches
+    FOR ALL USING (true);
+
+-- Papers table policies
+ALTER TABLE papers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for papers" ON papers
+    FOR ALL USING (true);
+
+-- PDF uploads table policies
+ALTER TABLE pdf_uploads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for pdf_uploads" ON pdf_uploads
+    FOR ALL USING (true);
+
+-- PDF batches table policies
+ALTER TABLE pdf_batches ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for pdf_batches" ON pdf_batches
+    FOR ALL USING (true);
+
+-- Batch PDFs table policies
+ALTER TABLE batch_pdfs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for batch_pdfs" ON batch_pdfs
+    FOR ALL USING (true);
+
+-- Firecrawl API keys table policies
+ALTER TABLE firecrawl_api_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for firecrawl_api_keys" ON firecrawl_api_keys
+    FOR ALL USING (true);
+
+-- AI models table policies
+ALTER TABLE ai_models ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all access for ai_models" ON ai_models
+    FOR ALL USING (true);
+
+-- Create functions for handling timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create triggers for updating timestamps
+CREATE TRIGGER update_ai_models_updated_at
+    BEFORE UPDATE ON ai_models
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_firecrawl_api_keys_updated_at
+    BEFORE UPDATE ON firecrawl_api_keys
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create function to ensure only one default AI model
+CREATE OR REPLACE FUNCTION ensure_single_default_ai_model()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_default THEN
+        UPDATE ai_models SET is_default = false WHERE id != NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create trigger for default AI model
+CREATE TRIGGER ensure_single_default_ai_model_trigger
+    BEFORE INSERT OR UPDATE ON ai_models
+    FOR EACH ROW
+    EXECUTE FUNCTION ensure_single_default_ai_model();
+
+-- Create indexes for frequently accessed columns
+CREATE INDEX IF NOT EXISTS idx_pdf_uploads_created_at ON pdf_uploads(created_at);
+CREATE INDEX IF NOT EXISTS idx_pdf_batches_timestamp ON pdf_batches(timestamp);
+CREATE INDEX IF NOT EXISTS idx_searches_timestamp ON searches(timestamp);
+
+-- Grant necessary permissions
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 ```
 4. Start the development server:
 ```bash
