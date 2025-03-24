@@ -57,11 +57,11 @@ yarn install
 ```
 
 3. Set up environment variables:
-Create a `.env` file in the root directory with:
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_AI_API_KEY=your_ai_service_api_key
+find file /firecollect/src/integrations/supabase/client.ts:
+```client.ts:
+const SUPABASE_URL = "your url here";
+const SUPABASE_PUBLISHABLE_KEY = "your key here";
+
 ```
 
 4. Start the development server:
