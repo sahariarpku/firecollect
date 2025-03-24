@@ -65,6 +65,7 @@ const SUPABASE_PUBLISHABLE_KEY = "your key here";
 ```
 
 4. Set up your database schema. You'll need to run these SQL commands in your Supabase SQL editor:
+```sql:
 -- Create tables
 CREATE TABLE IF NOT EXISTS searches (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -130,7 +131,7 @@ CREATE TABLE IF NOT EXISTS ai_models (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
+```
 4. Start the development server:
 ```bash
 npm i
