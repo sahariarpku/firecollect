@@ -64,6 +64,73 @@ const SUPABASE_PUBLISHABLE_KEY = "your key here";
 
 ```
 
+4. Set up your database schema. You'll need to run these SQL commands in your Supabase SQL editor:
+-- Create tables
+CREATE TABLE IF NOT EXISTS searches (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    query TEXT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS papers (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name TEXT NOT NULL,
+    author TEXT NOT NULL,
+    year INTEGER,
+    abstract TEXT,
+    doi TEXT,
+    search_id UUID REFERENCES searches(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pdf_uploads (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    filename TEXT NOT NULL,
+    title TEXT,
+    authors TEXT,
+    year INTEGER,
+    doi TEXT,
+    background TEXT,
+    full_text TEXT,
+    markdown_content TEXT,
+    research_question TEXT,
+    major_findings TEXT,
+    suggestions TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pdf_batches (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name TEXT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS batch_pdfs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    batch_id UUID REFERENCES pdf_batches(id),
+    pdf_id UUID REFERENCES pdf_uploads(id)
+);
+
+CREATE TABLE IF NOT EXISTS firecrawl_api_keys (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    api_key TEXT NOT NULL,
+    user_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_models (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    api_key TEXT NOT NULL,
+    base_url TEXT,
+    model_name TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 4. Start the development server:
 ```bash
 npm i
